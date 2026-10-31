@@ -13,7 +13,7 @@ main{padding:0 2px 96px}.dh{padding:18px 16px 8px;font-weight:600;font-size:15px
 .empty{text-align:center;color:var(--mut);padding:80px 30px}.empty svg{width:56px;height:56px;stroke-width:1.2;margin-bottom:10px}
 .albums{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:8px 16px}.alb img,.alb .ph{width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;background:var(--card);display:block}.alb b{display:block;margin-top:6px;font-weight:600;font-size:15px}.alb small{color:var(--mut)}
 nav{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);display:flex;padding:6px 0 calc(6px + env(safe-area-inset-bottom))}nav button{flex:1;padding:10px;font-size:15px;color:var(--mut);font-weight:600}nav button.on{color:var(--fg)}
-.sheet{position:fixed;inset:0;z-index:20;background:#0006;display:none;align-items:flex-end}.sheet.on{display:flex}.sheet>div{background:var(--bg);width:100%;border-radius:22px 22px 0 0;padding:10px 8px calc(16px + env(safe-area-inset-bottom));max-height:80vh;overflow:auto}
+.sheet{position:fixed;inset:0;z-index:40;background:#0006;display:none;align-items:flex-end}.sheet.on{display:flex}.sheet>div{background:var(--bg);width:100%;border-radius:22px 22px 0 0;padding:10px 8px calc(16px + env(safe-area-inset-bottom));max-height:80vh;overflow:auto}
 .row{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;text-align:left;border-radius:12px}.row:active{background:var(--card)}.row small{display:block;color:var(--mut);font-size:13px}.sh{padding:8px 16px;color:var(--mut);font-size:13px;font-weight:600}
 .seg{display:flex;margin:4px 16px 10px;background:var(--card);border-radius:12px;padding:3px}.seg button{flex:1;padding:8px;border-radius:9px;font-size:14px}.seg button.on{background:var(--bg);font-weight:600}
 #view{position:fixed;inset:0;z-index:30;background:#000;color:#fff;display:none;flex-direction:column}#view.on{display:flex}#vtop,#vbot{display:flex;align-items:center;padding:10px 8px;gap:4px}#vtop span{flex:1;font-size:14px;opacity:.85}#vbot{justify-content:space-around;padding-bottom:calc(12px + env(safe-area-inset-bottom))}#vbot button{display:flex;flex-direction:column;align-items:center;font-size:12px;gap:2px;padding:6px 10px}
@@ -31,7 +31,7 @@ nav{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px s
 <div id="vbot"><button id="vSave"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 19h14"/></svg>Save to device</button><button id="vShare"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 11l7.6-4M8.2 13l7.6 4"/></svg>Share</button><button id="vAlb"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M7 3h10"/></svg>Album</button><button id="vDel"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Delete</button></div></div>
 <div id="toast"></div>
 <script>
-const VER='2026.10.31a';
+const VER='2026.10.31b';
 const CID='844979369291-3008v3sv7o2tv9ktuj8dccvd0khjdneh.apps.googleusercontent.com';
 const PH='https://www.googleapis.com/auth/photoslibrary.appendonly https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata',DRS='https://www.googleapis.com/auth/drive.appdata';
 const SCOPE=PH+' '+DRS+' openid email';
