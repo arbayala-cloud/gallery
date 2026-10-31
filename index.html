@@ -23,15 +23,16 @@ nav{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px s
 </style></head><body>
 <header><h1 id="ttl">Pictures</h1><button class="ib" id="addB" aria-label="Add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><button class="ib" id="menuB" aria-label="Menu"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="19" r="1" fill="currentColor"/></svg></button></header>
 <div id="sync"><span id="syncT"></span><button id="syncB">Continue syncing</button></div>
+<div id="prog" style="display:none;margin:0 16px 8px;padding:10px 14px;border-radius:14px;background:var(--card);font-size:14px"><span id="progT"></span><div style="height:4px;background:var(--line);border-radius:2px;margin-top:8px"><div id="progB" style="height:100%;width:0;background:var(--acc);border-radius:2px"></div></div></div>
 <main id="app"></main>
 <nav><button data-tab="pics" class="on">Pictures</button><button data-tab="albums">Albums</button></nav>
-<input type="file" id="fPick" accept="image/*" multiple hidden><input type="file" id="fCam" accept="image/*" capture="environment" hidden>
+<input type="file" id="fPick" accept="image/*" multiple hidden><input type="file" id="fDir" accept="image/*" webkitdirectory multiple hidden><input type="file" id="fSd" accept="image/*" multiple hidden><input type="file" id="fCam" accept="image/*" capture="environment" hidden>
 <div class="sheet" id="sheet"><div id="sheetIn"></div></div>
 <div id="view"><div id="vtop"><button class="ib" id="vBack" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span id="vInfo"></span></div><div id="stage"><div id="strip"></div></div>
 <div id="vbot"><button id="vSave"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 19h14"/></svg>Save to device</button><button id="vShare"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 11l7.6-4M8.2 13l7.6 4"/></svg>Share</button><button id="vAlb"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M7 3h10"/></svg>Album</button><button id="vDel"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Delete</button></div></div>
 <div id="toast"></div>
 <script>
-const VER='2026.10.31b';
+const VER='2026.10.31c';
 const CID='844979369291-3008v3sv7o2tv9ktuj8dccvd0khjdneh.apps.googleusercontent.com';
 const PH='https://www.googleapis.com/auth/photoslibrary.appendonly https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata',DRS='https://www.googleapis.com/auth/drive.appdata';
 const SCOPE=PH+' '+DRS+' openid email';
@@ -67,25 +68,48 @@ async function driveUpload(p){const meta={name:'gallery-'+p.id+'-'+p.name,parent
  const pre='--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(meta)+'\r\n--'+b+'\r\nContent-Type: '+meta.mimeType+'\r\n\r\n';
  return (await(await api(UP+'?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body:new Blob([pre,p.blob,'\r\n--'+b+'--'])})).json()).id}
 /* ---------- sync queue ---------- */
-let syncing=false;
+let syncing=false;const bkSd=()=>LS.getItem('gal.bkSd')==='1',needsBk=p=>!p.gp&&!p.gd&&(p.src!=='sd'||bkSd());
 async function sync(){if(syncing||!hasTok())return paintSync();syncing=true;paintSync();
- try{for(const p of (await allPhotos()).filter(p=>!p.gp&&!p.gd)){
+ try{for(const p of (await allPhotos()).filter(needsBk)){
    if(LS.getItem('gal.gp')!=='0'&&LS.getItem('gal.gpOff')!=='1'){try{p.gp=await gpUpload(p);await putPhoto(p);continue}catch(e){if(e.message==='auth')throw e;
      if(e.status===403||e.status===400){LS.setItem('gal.gpOff','1');LS.setItem('gal.gpWhy',e.message)}else throw e}}
    if(LS.getItem('gal.gd')!=='0'){p.gd=await driveUpload(p);await putPhoto(p)}}}
  catch(e){if(e.message!=='auth')toast('Backup paused. Will retry.')}
  syncing=false;paintSync();}
-async function paintSync(){const n=(await allPhotos()).filter(p=>!p.gp&&!p.gd).length,s=$('sync');
+async function paintSync(){const n=(await allPhotos()).filter(needsBk).length,s=$('sync');
  if(!n){s.classList.remove('on');return}s.classList.add('on');
  $('syncT').textContent=syncing?'Backing up '+n+' photo'+(n>1?'s':'')+'...':n+' photo'+(n>1?'s':'')+' waiting to back up';$('syncB').style.display=syncing||hasTok()?'none':''}
 $('syncB').onclick=async()=>{try{await connect();sync()}catch(e){toast('Sign-in was cancelled')}};
 /* ---------- adding photos ---------- */
-async function thumb(blob){try{const bm=await createImageBitmap(blob);const s=360/Math.min(bm.width,bm.height),c=document.createElement('canvas');c.width=Math.round(bm.width*Math.min(1,s));c.height=Math.round(bm.height*Math.min(1,s));c.getContext('2d').drawImage(bm,0,0,c.width,c.height);return await new Promise(r=>c.toBlob(r,'image/jpeg',.8))}catch(e){return blob}}
+async function thumb(blob){try{const bm=await createImageBitmap(blob);try{const s=360/Math.min(bm.width,bm.height),c=document.createElement('canvas');c.width=Math.round(bm.width*Math.min(1,s));c.height=Math.round(bm.height*Math.min(1,s));c.getContext('2d').drawImage(bm,0,0,c.width,c.height);bm.close();return await new Promise(r=>c.toBlob(r,'image/jpeg',.8))}catch(e){bm.close();throw e}}catch(e){return blob}}
 async function addFiles(files,album){let n=0;for(const f of files){if(!f.type.startsWith('image/'))continue;const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
   await putPhoto({id,name:f.name||('IMG_'+id+'.jpg'),type:f.type,blob:f,thumb:await thumb(f),taken:f.lastModified||Date.now(),added:Date.now(),album:album||'Pictures'});n++}
  if(n){toast(n+' added');render();sync()}}
 $('fPick').onchange=e=>{addFiles([...e.target.files],'Pictures');e.target.value=''};
 $('fCam').onchange=e=>{addFiles([...e.target.files],'Camera');e.target.value=''};
+/* ---------- import from SD card ---------- */
+const IMGX=/\.(jpe?g|png|gif|webp|heic|heif|avif|bmp)$/i;
+async function exifDate(f){try{if(!/jpe?g$/i.test(f.type)&&!/\.jpe?g$/i.test(f.name))return 0;const b=new DataView(await f.slice(0,131072).arrayBuffer());if(b.getUint16(0)!==0xFFD8)return 0;let o=2;
+ while(o<b.byteLength-4){const m=b.getUint16(o),len=b.getUint16(o+2);if(m===0xFFE1&&b.getUint32(o+4)===0x45786966){const t=o+10,le=b.getUint16(t)===0x4949,g16=x=>b.getUint16(t+x,le),g32=x=>b.getUint32(t+x,le);
+   const rd=(ifd,want)=>{const n=g16(ifd);for(let i=0;i<n;i++){const e=ifd+2+i*12;if(want.includes(g16(e)))return[g16(e),g32(e+8)]}return null};
+   let hit=null;const sub=rd(g32(4),[0x8769]);if(sub)hit=rd(sub[1],[0x9003]);if(!hit)hit=rd(g32(4),[0x0132]);if(!hit)return 0;
+   let str='';for(let i=0;i<19;i++)str+=String.fromCharCode(b.getUint8(t+hit[1]+i));const q=str.match(/(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)/);return q?new Date(+q[1],q[2]-1,+q[3],+q[4],+q[5],+q[6]).getTime():0}
+  if((m&0xFF00)!==0xFF00)return 0;o+=2+len}}catch(e){}return 0}
+const fkey=f=>f.name+'|'+f.size+'|'+f.lastModified;
+function prog(t,frac){const p=$('prog');if(t==null){p.style.display='none';return}p.style.display='block';$('progT').textContent=t;$('progB').style.width=Math.round(frac*100)+'%'}
+async function importFiles(files){files=files.filter(f=>f.type.startsWith('image/')||IMGX.test(f.name));const have=new Set((await allPhotos()).map(p=>p.k||(p.name+'|'+p.blob.size+'|'+p.blob.lastModified)));
+ const todo=files.filter(f=>!have.has(fkey(f)));if(!files.length)return toast('No photos found there');if(!todo.length)return toast('No new photos');
+ let n=0;for(const f of todo){prog('Adding '+(n+1)+' of '+todo.length+'...',n/todo.length);const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  await putPhoto({id,k:fkey(f),name:f.name,type:f.type||'image/jpeg',blob:f,thumb:await thumb(f),taken:(await exifDate(f))||f.lastModified||Date.now(),added:Date.now(),album:'SD card',src:'sd'});n++;
+  if(n%40===0)render()}
+ prog(null);toast(n+' photo'+(n>1?'s':'')+' added to SD card album'+(files.length>todo.length?' ('+(files.length-todo.length)+' already here)':''),4000);render();sync()}
+async function walk(d,out){for await(const h of d.values()){if(h.kind==='file'){if(IMGX.test(h.name))out.push(await h.getFile())}else if(!h.name.startsWith('.'))await walk(h,out)}return out}
+async function fromDir(d){if((await d.queryPermission({mode:'read'}))!=='granted'&&(await d.requestPermission({mode:'read'}))!=='granted')return toast('Permission needed');prog('Looking for photos...',0);let f=[];try{f=await walk(d,[])}catch(e){}prog(null);await importFiles(f)}
+async function addFromSd(){if(window.showDirectoryPicker){try{const d=await showDirectoryPicker({id:'sdcard',mode:'read'});await kvSet('sddir',d);return fromDir(d)}catch(e){if(e.name==='AbortError')return}}
+ if('webkitdirectory'in $('fDir'))return $('fDir').click();$('fSd').click()}
+async function checkNew(){const d=await kvGet('sddir');if(d)return fromDir(d);addFromSd()}
+$('fDir').onchange=e=>{const f=[...e.target.files];e.target.value='';if(f.length)importFiles(f);else $('fSd').click()};
+$('fSd').onchange=e=>{const f=[...e.target.files];e.target.value='';importFiles(f)};
 /* ---------- save to device / SD card ---------- */
 async function saveToDevice(p){
  if(window.showDirectoryPicker){try{let d=await kvGet('dir');if(d&&(await d.queryPermission({mode:'readwrite'}))!=='granted'&&(await d.requestPermission({mode:'readwrite'}))!=='granted')d=null;
@@ -133,15 +157,16 @@ function addAlbum(a){const l=JSON.parse(LS.getItem('gal.albums')||'[]');if(!l.in
 /* ---------- sheets ---------- */
 function sheet(html,onrow){$('sheetIn').innerHTML=html;$('sheet').classList.add('on');$('sheetIn').querySelectorAll('.row').forEach(b=>b.onclick=()=>onrow(b))}
 function closeSheet(){$('sheet').classList.remove('on')}$('sheet').onclick=e=>{if(e.target.id==='sheet')closeSheet()};
-$('addB').onclick=()=>sheet('<div class="sh">Add photos</div><button class="row" data-k="pick">'+I.img+'<div>Choose from phone<small>Pick one or many</small></div></button><button class="row" data-k="cam">'+I.cam+'<div>Take a photo</div></button>'+(TAB==='albums'&&!ALB?'<button class="row" data-k="alb">'+I.folder+'<div>New album</div></button>':''),b=>{closeSheet();const k=b.dataset.k;if(k==='pick')$('fPick').click();if(k==='cam')$('fCam').click();if(k==='alb'){const a=(prompt('Album name')||'').trim();if(a){addAlbum(a);render()}}});
+$('addB').onclick=()=>sheet('<div class="sh">Add photos</div><button class="row" data-k="pick">'+I.img+'<div>Choose from phone<small>Pick one or many</small></div></button><button class="row" data-k="cam">'+I.cam+'<div>Take a photo</div></button><button class="row" data-k="sd">'+I.folder+'<div>Add from SD card<small>Pick a folder; all its photos come in</small></div></button><button class="row" data-k="sdnew">'+I.folder+'<div>Check for new photos<small>Only adds ones not already here</small></div></button>'+(TAB==='albums'&&!ALB?'<button class="row" data-k="alb">'+I.folder+'<div>New album</div></button>':''),b=>{closeSheet();const k=b.dataset.k;if(k==='pick')$('fPick').click();if(k==='cam')$('fCam').click();if(k==='sd')addFromSd();if(k==='sdnew')checkNew();if(k==='alb'){const a=(prompt('Album name')||'').trim();if(a){addAlbum(a);render()}}});
 $('menuB').onclick=async()=>{const t=LS.getItem('gal.theme')||'system',em=LS.getItem('gal.em'),off=LS.getItem('gal.gpOff')==='1'||LS.getItem('gal.gp')==='0';
  const where=!em?'Not connected yet':off?'Backing up to your Google Drive (private)':'Uploading to Google Photos album "My Gallery"';
  sheet('<div class="sh">Theme</div><div class="seg">'+['light','dark','system'].map(v=>'<button data-t="'+v+'" class="'+(t===v?'on':'')+'">'+v[0].toUpperCase()+v.slice(1)+'</button>').join('')+'</div>'+
   '<div class="sh">Backup</div><button class="row" data-k="conn">'+I.cloud+'<div>'+(em?'Connected: '+esc(em):'Connect Google')+'<small>'+where+'</small></div></button>'+
   (off&&em?'<button class="row" data-k="retry">'+I.cloud+'<div>Try Google Photos again</div></button>':'')+
-  (window.showDirectoryPicker?'<button class="row" data-k="dir">'+I.folder+'<div>Change save folder<small>Pick a folder on your phone or SD card</small></div></button>':'')+
+  '<button class="row" data-k="bksd">'+I.cloud+'<div>Back up SD card photos: '+(bkSd()?'On':'Off')+'<small>'+(bkSd()?'They upload with the rest':'Kept on phone only; tap to turn on')+'</small></div></button>'+(window.showDirectoryPicker?'<button class="row" data-k="dir">'+I.folder+'<div>Change save folder<small>Pick a folder on your phone or SD card</small></div></button>':'')+
   '<div class="foot">Version '+VER+'</div>',async b=>{const k=b.dataset.k;closeSheet();
   if(k==='conn'){try{await connect();toast('Connected');sync()}catch(e){toast('Sign-in was cancelled')}}
+  if(k==='bksd'){const on=!bkSd();if(on){const c=(await allPhotos()).filter(p=>p.src==='sd'&&!p.gp&&!p.gd).length;if(c&&!confirm('Back up '+c+' SD card photo'+(c>1?'s':'')+' to Google? Big batches can take a while and use data.'))return}LS.setItem('gal.bkSd',on?'1':'0');toast(on?'SD photos will back up':'SD photos stay on phone only');paintSync();if(on)sync()}
   if(k==='retry'){LS.removeItem('gal.gpOff');try{await connect();sync()}catch(e){}}
   if(k==='dir'){try{const d=await showDirectoryPicker({id:'gallery',mode:'readwrite'});await kvSet('dir',d);toast('Will save to '+d.name)}catch(e){}}});
  $('sheetIn').querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{theme(b.dataset.t);$('sheetIn').querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b))})};
