@@ -1,0 +1,152 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Gallery</title><link rel="manifest" href="manifest.json"><link rel="icon" href="icons/favicon-32.png"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><meta name="theme-color" content="#ffffff">
+<style>
+:root{--bg:#fff;--fg:#111;--mut:#777;--card:#f3f3f5;--line:#e6e6ea;--acc:#e2304f}
+:root[data-t=dark]{--bg:#000;--fg:#f2f2f2;--mut:#999;--card:#1a1a1c;--line:#2a2a2e}
+@media(prefers-color-scheme:dark){:root[data-t=system]{--bg:#000;--fg:#f2f2f2;--mut:#999;--card:#1a1a1c;--line:#2a2a2e}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+header{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;align-items:center;padding:14px 12px 10px 20px;gap:4px}
+header h1{flex:1;margin:0;font-size:28px;font-weight:600}.ib{width:44px;height:44px;border-radius:50%;display:grid;place-items:center}.ib:active{background:var(--card)}
+#sync{display:none;margin:0 16px 8px;padding:10px 14px;border-radius:14px;background:var(--card);align-items:center;gap:10px;font-size:14px}#sync.on{display:flex}#sync span{flex:1}#sync button{background:var(--acc);color:#fff;border-radius:20px;padding:7px 14px;font-weight:600}
+main{padding:0 2px 96px}.dh{padding:18px 16px 8px;font-weight:600;font-size:15px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px}.grid img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:var(--card)}
+.empty{text-align:center;color:var(--mut);padding:80px 30px}.empty svg{width:56px;height:56px;stroke-width:1.2;margin-bottom:10px}
+.albums{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:8px 16px}.alb img,.alb .ph{width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;background:var(--card);display:block}.alb b{display:block;margin-top:6px;font-weight:600;font-size:15px}.alb small{color:var(--mut)}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);display:flex;padding:6px 0 calc(6px + env(safe-area-inset-bottom))}nav button{flex:1;padding:10px;font-size:15px;color:var(--mut);font-weight:600}nav button.on{color:var(--fg)}
+.sheet{position:fixed;inset:0;z-index:20;background:#0006;display:none;align-items:flex-end}.sheet.on{display:flex}.sheet>div{background:var(--bg);width:100%;border-radius:22px 22px 0 0;padding:10px 8px calc(16px + env(safe-area-inset-bottom));max-height:80vh;overflow:auto}
+.row{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;text-align:left;border-radius:12px}.row:active{background:var(--card)}.row small{display:block;color:var(--mut);font-size:13px}.sh{padding:8px 16px;color:var(--mut);font-size:13px;font-weight:600}
+.seg{display:flex;margin:4px 16px 10px;background:var(--card);border-radius:12px;padding:3px}.seg button{flex:1;padding:8px;border-radius:9px;font-size:14px}.seg button.on{background:var(--bg);font-weight:600}
+#view{position:fixed;inset:0;z-index:30;background:#000;color:#fff;display:none;flex-direction:column}#view.on{display:flex}#vtop,#vbot{display:flex;align-items:center;padding:10px 8px;gap:4px}#vtop span{flex:1;font-size:14px;opacity:.85}#vbot{justify-content:space-around;padding-bottom:calc(12px + env(safe-area-inset-bottom))}#vbot button{display:flex;flex-direction:column;align-items:center;font-size:12px;gap:2px;padding:6px 10px}
+#stage{flex:1;overflow:hidden;position:relative;touch-action:pan-y}#strip{display:flex;height:100%;transition:transform .25s}#strip img{flex:0 0 100%;width:100%;height:100%;object-fit:contain}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#333;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;z-index:50;display:none;max-width:90%;text-align:center}
+.foot{text-align:center;color:var(--mut);font-size:12px;padding:20px}
+</style></head><body>
+<header><h1 id="ttl">Pictures</h1><button class="ib" id="addB" aria-label="Add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><button class="ib" id="menuB" aria-label="Menu"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="19" r="1" fill="currentColor"/></svg></button></header>
+<div id="sync"><span id="syncT"></span><button id="syncB">Continue syncing</button></div>
+<main id="app"></main>
+<nav><button data-tab="pics" class="on">Pictures</button><button data-tab="albums">Albums</button></nav>
+<input type="file" id="fPick" accept="image/*" multiple hidden><input type="file" id="fCam" accept="image/*" capture="environment" hidden>
+<div class="sheet" id="sheet"><div id="sheetIn"></div></div>
+<div id="view"><div id="vtop"><button class="ib" id="vBack" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span id="vInfo"></span></div><div id="stage"><div id="strip"></div></div>
+<div id="vbot"><button id="vSave"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 19h14"/></svg>Save to device</button><button id="vShare"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 11l7.6-4M8.2 13l7.6 4"/></svg>Share</button><button id="vAlb"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M7 3h10"/></svg>Album</button><button id="vDel"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Delete</button></div></div>
+<div id="toast"></div>
+<script>
+const VER='2026.10.31a';
+const CID='844979369291-3008v3sv7o2tv9ktuj8dccvd0khjdneh.apps.googleusercontent.com';
+const PH='https://www.googleapis.com/auth/photoslibrary.appendonly https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata',DRS='https://www.googleapis.com/auth/drive.appdata';
+const SCOPE=PH+' '+DRS+' openid email';
+const LS=localStorage,$=id=>document.getElementById(id),GP='https://photoslibrary.googleapis.com/v1/',DR='https://www.googleapis.com/drive/v3/files',UP='https://www.googleapis.com/upload/drive/v3/files';
+/* ---------- theme ---------- */
+function theme(v){if(v)LS.setItem('gal.theme',v);document.documentElement.dataset.t=LS.getItem('gal.theme')||'system'}theme();
+function toast(m,ms){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',ms||2600)}
+/* ---------- IndexedDB ---------- */
+let dbP;function db(){return dbP||(dbP=new Promise((ok,no)=>{const r=indexedDB.open('gallery',1);r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('photos',{keyPath:'id'});d.createObjectStore('kv')};r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}))}
+async function tx(st,mode,fn){const d=await db();return new Promise((ok,no)=>{const t=d.transaction(st,mode),s=t.objectStore(st);const r=fn(s);t.oncomplete=()=>ok(r&&r.result);t.onerror=()=>no(t.error)})}
+const allPhotos=()=>tx('photos','readonly',s=>s.getAll()),putPhoto=p=>tx('photos','readwrite',s=>s.put(p)),delPhoto=id=>tx('photos','readwrite',s=>s.delete(id));
+const kvGet=k=>tx('kv','readonly',s=>s.get(k)),kvSet=(k,v)=>tx('kv','readwrite',s=>s.put(v,k));
+/* ---------- Google sign-in (same as Bible/Blog: never auto-prompts) ---------- */
+let tok=null,tokExp=0;try{const v=JSON.parse(LS.getItem('gal.tok')||'null');if(v&&v.e>Date.now()+60000){tok=v.t;tokExp=v.e}}catch(e){}
+let gisP=null;function gis(){return gisP||(gisP=new Promise((ok,no)=>{if(window.google&&google.accounts&&google.accounts.oauth2)return ok();const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=1;s.onload=()=>ok();s.onerror=()=>{gisP=null;no(new Error('offline'))};document.head.appendChild(s)}))}
+const hasTok=()=>tok&&Date.now()<tokExp-60000;
+async function connect(){await gis();return new Promise((ok,no)=>{const tc=google.accounts.oauth2.initTokenClient({client_id:CID,scope:SCOPE,include_granted_scopes:true,login_hint:LS.getItem('gal.em')||undefined,
+ callback:async r=>{if(!r||!r.access_token)return no(new Error(r&&r.error||'denied'));tok=r.access_token;tokExp=Date.now()+(r.expires_in||3600)*1000;LS.setItem('gal.tok',JSON.stringify({t:tok,e:tokExp}));
+  const g=s=>google.accounts.oauth2.hasGrantedAllScopes(r,s);LS.setItem('gal.gp',g('https://www.googleapis.com/auth/photoslibrary.appendonly')?'1':'0');LS.setItem('gal.gd',g(DRS)?'1':'0');
+  if(!LS.getItem('gal.em')){try{const u=await(await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+tok}})).json();if(u.email)LS.setItem('gal.em',u.email)}catch(e){}}ok(tok)},
+ error_callback:e=>no(new Error(e&&e.type||'failed'))});tc.requestAccessToken({prompt:LS.getItem('gal.em')?'':'select_account'})})}
+function dropTok(){tok=null;tokExp=0;LS.removeItem('gal.tok')}
+async function api(u,o={}){if(!hasTok())throw new Error('auth');const r=await fetch(u,{...o,headers:{...(o.headers||{}),Authorization:'Bearer '+tok}});if(r.status===401){dropTok();throw new Error('auth')}if(!r.ok){let m='';try{m=(await r.json()).error.message}catch(e){}const er=new Error('http '+r.status+' '+m);er.status=r.status;throw er}return r}
+/* ---------- Google Photos (app album "My Gallery") ---------- */
+async function gpAlbum(){let id=LS.getItem('gal.album');if(id)return id;
+ const a=await(await api(GP+'albums',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({album:{title:'My Gallery'}})})).json();LS.setItem('gal.album',a.id);return a.id}
+async function gpUpload(p){const albumId=await gpAlbum();
+ const ut=await(await api(GP+'uploads',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Goog-Upload-Content-Type':p.type||'image/jpeg','X-Goog-Upload-Protocol':'raw'},body:p.blob})).text();
+ const r=await(await api(GP+'mediaItems:batchCreate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({albumId,newMediaItems:[{simpleMediaItem:{uploadToken:ut,fileName:p.name}}]})})).json();
+ const x=r.newMediaItemResults&&r.newMediaItemResults[0];if(!x||!x.mediaItem)throw new Error('Photos said: '+(x&&x.status&&x.status.message||'no item'));return x.mediaItem.id}
+/* ---------- Drive backup fallback (hidden app folder) ---------- */
+async function driveUpload(p){const meta={name:'gallery-'+p.id+'-'+p.name,parents:['appDataFolder'],mimeType:p.type||'image/jpeg',appProperties:{gid:p.id,taken:String(p.taken),album:p.album}};const b='gal'+Date.now();
+ const pre='--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(meta)+'\r\n--'+b+'\r\nContent-Type: '+meta.mimeType+'\r\n\r\n';
+ return (await(await api(UP+'?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body:new Blob([pre,p.blob,'\r\n--'+b+'--'])})).json()).id}
+/* ---------- sync queue ---------- */
+let syncing=false;
+async function sync(){if(syncing||!hasTok())return paintSync();syncing=true;paintSync();
+ try{for(const p of (await allPhotos()).filter(p=>!p.gp&&!p.gd)){
+   if(LS.getItem('gal.gp')!=='0'&&LS.getItem('gal.gpOff')!=='1'){try{p.gp=await gpUpload(p);await putPhoto(p);continue}catch(e){if(e.message==='auth')throw e;
+     if(e.status===403||e.status===400){LS.setItem('gal.gpOff','1');LS.setItem('gal.gpWhy',e.message)}else throw e}}
+   if(LS.getItem('gal.gd')!=='0'){p.gd=await driveUpload(p);await putPhoto(p)}}}
+ catch(e){if(e.message!=='auth')toast('Backup paused. Will retry.')}
+ syncing=false;paintSync();}
+async function paintSync(){const n=(await allPhotos()).filter(p=>!p.gp&&!p.gd).length,s=$('sync');
+ if(!n){s.classList.remove('on');return}s.classList.add('on');
+ $('syncT').textContent=syncing?'Backing up '+n+' photo'+(n>1?'s':'')+'...':n+' photo'+(n>1?'s':'')+' waiting to back up';$('syncB').style.display=syncing||hasTok()?'none':''}
+$('syncB').onclick=async()=>{try{await connect();sync()}catch(e){toast('Sign-in was cancelled')}};
+/* ---------- adding photos ---------- */
+async function thumb(blob){try{const bm=await createImageBitmap(blob);const s=360/Math.min(bm.width,bm.height),c=document.createElement('canvas');c.width=Math.round(bm.width*Math.min(1,s));c.height=Math.round(bm.height*Math.min(1,s));c.getContext('2d').drawImage(bm,0,0,c.width,c.height);return await new Promise(r=>c.toBlob(r,'image/jpeg',.8))}catch(e){return blob}}
+async function addFiles(files,album){let n=0;for(const f of files){if(!f.type.startsWith('image/'))continue;const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  await putPhoto({id,name:f.name||('IMG_'+id+'.jpg'),type:f.type,blob:f,thumb:await thumb(f),taken:f.lastModified||Date.now(),added:Date.now(),album:album||'Pictures'});n++}
+ if(n){toast(n+' added');render();sync()}}
+$('fPick').onchange=e=>{addFiles([...e.target.files],'Pictures');e.target.value=''};
+$('fCam').onchange=e=>{addFiles([...e.target.files],'Camera');e.target.value=''};
+/* ---------- save to device / SD card ---------- */
+async function saveToDevice(p){
+ if(window.showDirectoryPicker){try{let d=await kvGet('dir');if(d&&(await d.queryPermission({mode:'readwrite'}))!=='granted'&&(await d.requestPermission({mode:'readwrite'}))!=='granted')d=null;
+   if(!d){d=await showDirectoryPicker({id:'gallery',mode:'readwrite'});await kvSet('dir',d)}
+   const fh=await d.getFileHandle(p.name,{create:true}),w=await fh.createWritable();await w.write(p.blob);await w.close();return toast('Saved to '+d.name)}catch(e){if(e.name==='AbortError')return}}
+ if(window.showSaveFilePicker){try{const fh=await showSaveFilePicker({suggestedName:p.name});const w=await fh.createWritable();await w.write(p.blob);await w.close();return toast('Saved')}catch(e){if(e.name==='AbortError')return}}
+ const a=document.createElement('a');a.href=URL.createObjectURL(p.blob);a.download=p.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);toast('Saved to Downloads')}
+async function share(p){const f=new File([p.blob],p.name,{type:p.type});if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f]})}catch(e){}}else toast('Sharing not supported here')}
+/* ---------- views ---------- */
+let TAB='pics',LIST=[],URLS=[];const I={img:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>',cam:'<svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',folder:'<svg viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></svg>',sun:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>',cloud:'<svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 0-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 18z"/></svg>'};
+function u(b){const x=URL.createObjectURL(b);URLS.push(x);return x}
+const dkey=t=>{const d=new Date(t);return d.toDateString()},dlabel=t=>{const d=new Date(t),n=new Date();if(d.toDateString()===n.toDateString())return'Today';const y=new Date(n-864e5);if(d.toDateString()===y.toDateString())return'Yesterday';return d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:d.getFullYear()===n.getFullYear()?undefined:'numeric'})};
+let ALB=null;
+async function render(){URLS.forEach(URL.revokeObjectURL);URLS=[];const all=(await allPhotos()).sort((a,b)=>b.taken-a.taken),m=$('app');
+ document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===TAB));
+ if(TAB==='albums'&&!ALB){$('ttl').textContent='Albums';const g={};all.forEach(p=>(g[p.album]=g[p.album]||[]).push(p));(JSON.parse(LS.getItem('gal.albums')||'[]')).forEach(a=>g[a]=g[a]||[]);
+  const ks=Object.keys(g);m.innerHTML=ks.length?'<div class="albums">'+ks.map(k=>'<button class="alb" data-a="'+esc(k)+'" style="text-align:left">'+(g[k][0]?'<img src="'+u(g[k][0].thumb)+'">':'<div class="ph"></div>')+'<b>'+esc(k)+'</b><small>'+g[k].length+'</small></button>').join('')+'</div>':empty();
+  m.querySelectorAll('.alb').forEach(b=>b.onclick=()=>{ALB=b.dataset.a;render()});return}
+ const list=ALB?all.filter(p=>p.album===ALB):all;LIST=list;$('ttl').textContent=ALB||'Pictures';
+ if(!list.length){m.innerHTML=(ALB?'<button class="row" id="albBack">'+'Back to albums</button>':'')+empty();if(ALB)$('albBack').onclick=()=>{ALB=null;render()};return}
+ let h=ALB?'<button class="row" id="albBack"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>All albums</button>':'',last='';
+ list.forEach((p,i)=>{const k=dkey(p.taken);if(k!==last){h+=(last?'</div>':'')+'<div class="dh">'+dlabel(p.taken)+'</div><div class="grid">';last=k}h+='<img loading="lazy" data-i="'+i+'" src="'+u(p.thumb)+'">'});
+ m.innerHTML=h+'</div><div class="foot">Gallery &middot; Version '+VER+'</div>';m.querySelectorAll('.grid img').forEach(im=>im.onclick=()=>openView(+im.dataset.i));if(ALB)$('albBack').onclick=()=>{ALB=null;render()}}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const empty=()=>'<div class="empty">'+I.img.replace('<svg','<svg')+'<div>No pictures yet.<br>Tap + to add some.</div></div>';
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{TAB=b.dataset.tab;ALB=null;render();scrollTo(0,0)});
+/* ---------- viewer ---------- */
+let VI=0,VU=[];
+function openView(i){VI=i;VU.forEach(URL.revokeObjectURL);VU=LIST.map(()=>null);$('view').classList.add('on');paintView();history.pushState({v:1},'')}
+function paintView(){const s=$('strip');s.innerHTML='';for(let j=0;j<LIST.length;j++){const im=document.createElement('img');if(Math.abs(j-VI)<=1){VU[j]=VU[j]||URL.createObjectURL(LIST[j].blob);im.src=VU[j]}s.appendChild(im)}
+ s.style.transition='none';s.style.transform='translateX('+(-VI*100)+'%)';requestAnimationFrame(()=>s.style.transition='');const p=LIST[VI];
+ $('vInfo').textContent=new Date(p.taken).toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})+(p.gp?'  ·  In Google Photos':p.gd?'  ·  Backed up':'')}
+function go(d){const n=VI+d;if(n<0||n>=LIST.length)return paintView();VI=n;paintView()}
+function closeView(){$('view').classList.remove('on')}
+$('vBack').onclick=()=>history.back();addEventListener('popstate',()=>{closeView();closeSheet()});
+(()=>{let x0=null,dx=0;const st=$('stage'),s=$('strip');st.addEventListener('touchstart',e=>{x0=e.touches[0].clientX;dx=0;s.style.transition='none'},{passive:true});
+ st.addEventListener('touchmove',e=>{if(x0==null)return;dx=e.touches[0].clientX-x0;s.style.transform='translateX(calc('+(-VI*100)+'% + '+dx+'px))'},{passive:true});
+ st.addEventListener('touchend',()=>{s.style.transition='';if(Math.abs(dx)>50)go(dx<0?1:-1);else paintView();x0=null});
+ addEventListener('keydown',e=>{if(!$('view').classList.contains('on'))return;if(e.key==='ArrowRight')go(1);if(e.key==='ArrowLeft')go(-1);if(e.key==='Escape')history.back()})})();
+$('vSave').onclick=()=>saveToDevice(LIST[VI]);$('vShare').onclick=()=>share(LIST[VI]);
+$('vDel').onclick=async()=>{if(!confirm('Remove this photo from the Gallery app? (Your Google Photos copy stays.)'))return;await delPhoto(LIST[VI].id);LIST.splice(VI,1);if(!LIST.length){history.back();return render()}VI=Math.min(VI,LIST.length-1);paintView();render()};
+$('vAlb').onclick=async()=>{const names=[...new Set([...(await allPhotos()).map(p=>p.album),...JSON.parse(LS.getItem('gal.albums')||'[]')])];
+ sheet('<div class="sh">Move to album</div>'+names.map(n=>'<button class="row" data-a="'+esc(n)+'">'+I.folder+esc(n)+'</button>').join('')+'<button class="row" data-new>'+I.folder+'New album...</button>',async b=>{let a=b.dataset.a;if(b.hasAttribute('data-new')){a=(prompt('Album name')||'').trim();if(!a)return;addAlbum(a)}const p=LIST[VI];p.album=a;await putPhoto(p);closeSheet();toast('Moved to '+a);render()})};
+function addAlbum(a){const l=JSON.parse(LS.getItem('gal.albums')||'[]');if(!l.includes(a)){l.push(a);LS.setItem('gal.albums',JSON.stringify(l))}}
+/* ---------- sheets ---------- */
+function sheet(html,onrow){$('sheetIn').innerHTML=html;$('sheet').classList.add('on');$('sheetIn').querySelectorAll('.row').forEach(b=>b.onclick=()=>onrow(b))}
+function closeSheet(){$('sheet').classList.remove('on')}$('sheet').onclick=e=>{if(e.target.id==='sheet')closeSheet()};
+$('addB').onclick=()=>sheet('<div class="sh">Add photos</div><button class="row" data-k="pick">'+I.img+'<div>Choose from phone<small>Pick one or many</small></div></button><button class="row" data-k="cam">'+I.cam+'<div>Take a photo</div></button>'+(TAB==='albums'&&!ALB?'<button class="row" data-k="alb">'+I.folder+'<div>New album</div></button>':''),b=>{closeSheet();const k=b.dataset.k;if(k==='pick')$('fPick').click();if(k==='cam')$('fCam').click();if(k==='alb'){const a=(prompt('Album name')||'').trim();if(a){addAlbum(a);render()}}});
+$('menuB').onclick=async()=>{const t=LS.getItem('gal.theme')||'system',em=LS.getItem('gal.em'),off=LS.getItem('gal.gpOff')==='1'||LS.getItem('gal.gp')==='0';
+ const where=!em?'Not connected yet':off?'Backing up to your Google Drive (private)':'Uploading to Google Photos album "My Gallery"';
+ sheet('<div class="sh">Theme</div><div class="seg">'+['light','dark','system'].map(v=>'<button data-t="'+v+'" class="'+(t===v?'on':'')+'">'+v[0].toUpperCase()+v.slice(1)+'</button>').join('')+'</div>'+
+  '<div class="sh">Backup</div><button class="row" data-k="conn">'+I.cloud+'<div>'+(em?'Connected: '+esc(em):'Connect Google')+'<small>'+where+'</small></div></button>'+
+  (off&&em?'<button class="row" data-k="retry">'+I.cloud+'<div>Try Google Photos again</div></button>':'')+
+  (window.showDirectoryPicker?'<button class="row" data-k="dir">'+I.folder+'<div>Change save folder<small>Pick a folder on your phone or SD card</small></div></button>':'')+
+  '<div class="foot">Version '+VER+'</div>',async b=>{const k=b.dataset.k;closeSheet();
+  if(k==='conn'){try{await connect();toast('Connected');sync()}catch(e){toast('Sign-in was cancelled')}}
+  if(k==='retry'){LS.removeItem('gal.gpOff');try{await connect();sync()}catch(e){}}
+  if(k==='dir'){try{const d=await showDirectoryPicker({id:'gallery',mode:'readwrite'});await kvSet('dir',d);toast('Will save to '+d.name)}catch(e){}}});
+ $('sheetIn').querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{theme(b.dataset.t);$('sheetIn').querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b))})};
+/* ---------- start ---------- */
+render();paintSync();if(hasTok())sync();
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js',{scope:'./'});
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
+</script></body></html>
